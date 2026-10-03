@@ -1,0 +1,30 @@
+# Capstone Evaluator Manifest
+# Machine-readable contract per FlyRank Internship Backend Track Specification
+
+run: "npm run start"
+seed: "npm run seed"
+test: "npm run test"
+base_url: "http://localhost:3000"
+
+endpoints:
+  billable_meter: "/v1/meter/billable"
+  dummy_generate: "/v1/generate"
+  usage_rollup: "/v1/usage"
+  billing_checkout: "/v1/billing/checkout"
+  stripe_webhook: "/v1/webhooks/stripe"
+  health_check: "/health"
+  api_docs: "/docs"
+  developer_dashboard: "/dashboard"
+
+tenants:
+  free_tenant_id: "00000000-0000-0000-0000-000000000001"
+  pro_tenant_id: "00000000-0000-0000-0000-000000000002"
+  boundary_tenant_id: "00000000-0000-0000-0000-000000000003" # Pre-seeded to 999 calls of 1,000 limit
+  lapsed_tenant_id: "00000000-0000-0000-0000-000000000004"   # PAST_DUE status (tests 402 Payment Required)
+
+probes:
+  probe_1_idempotency: "Send same billable request twice with one Idempotency-Key -> 1 event created, 2nd mirrors 1st"
+  probe_2_boundary: "Boundary at 1,000 calls; 1,001st returns 429 Too Many Requests; lapsed returns 402 Payment Required"
+  probe_3_checkout_sync: "Signed Stripe checkout.session.completed webhook upgrades tenant Free -> Pro; GET /usage reflects Pro limits"
+  probe_4_webhook_resilience: "Forged signature returns 400; replaying valid event returns duplicate_ignored with 200"
+  probe_5_pinned_pricing: "Cached input discounted at 25% of fresh; reasoning tokens billed as output tokens"
