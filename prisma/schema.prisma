@@ -1,0 +1,107 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id               String        @id @default(uuid())
+  name             String
+  stripeCustomerId String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  subscription     Subscription?
+  usageEvents      UsageEvent[]
+  usageAlerts      UsageAlert[]
+
+  @@map("tenants")
+}
+
+model Plan {
+  id                  String         @id
+  name                String
+  maxApiCallsPerMonth Int
+  maxTokensPerMonth   Int
+  priceCentsMonthly   Int
+  stripePriceId       String?
+  createdAt           DateTime       @default(now())
+
+  subscriptions       Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  tenantId             String   @unique
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan     @relation(fields: [planId], references: [id])
+  stripeSubscriptionId String?  @unique
+  status               String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED, INCOMPLETE
+  currentPeriodStart   DateTime @default(now())
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model UsageEvent {
+  id                    String   @id @default(uuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  eventType             String   // "api_call", "ai_token"
+  apiCallsCount         Int      @default(1)
+  tokensInputFresh      Int      @default(0)
+  tokensInputCached     Int      @default(0)
+  tokensOutputStandard  Int      @default(0)
+  tokensOutputReasoning Int      @default(0)
+  costMicrocents        BigInt   @default(0)
+  idempotencyKey        String
+  timestamp             DateTime @default(now())
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, timestamp])
+  @@map("usage_events")
+}
+
+model IdempotencyRecord {
+  idempotencyKey String   @id
+  tenantId       String
+  requestHash    String
+  status         String   // "IN_PROGRESS", "COMPLETED", "FAILED"
+  responseCode   Int?
+  responseBody   String?  // Serialized JSON
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([tenantId])
+  @@map("idempotency_records")
+}
+
+model ProcessedWebhookEvent {
+  stripeEventId String   @id
+  eventType     String
+  processedAt   DateTime @default(now())
+  status        String   // "SUCCESS", "DUPLICATE", "FAILED"
+
+  @@map("processed_webhook_events")
+}
+
+model UsageAlert {
+  id               String   @id @default(uuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thresholdPercent Int      // 80 or 100
+  metric           String   // "api_calls" or "ai_tokens"
+  triggeredAt      DateTime @default(now())
+  acknowledged     Boolean  @default(false)
+
+  @@index([tenantId, metric])
+  @@map("usage_alerts")
+}
