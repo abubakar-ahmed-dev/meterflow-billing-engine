@@ -1,0 +1,66 @@
+{
+  "name": "meterflow-billing-engine",
+  "version": "1.0.0",
+  "description": "Production-grade multi-tenant usage metering and billing engine with exact idempotency, quota enforcement, and Stripe integration",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "tsx watch src/index.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "seed": "tsx prisma/seed.ts",
+    "simulate:webhook": "tsx scripts/simulate-webhook.ts",
+    "job:reconcile": "tsx scripts/run-job.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "keywords": [
+    "billing",
+    "metering",
+    "idempotency",
+    "quota",
+    "stripe",
+    "saas",
+    "multi-tenant",
+    "typescript"
+  ],
+  "author": "abubakar-ahmed-dev",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "stripe": "^17.7.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "@types/node-cron": "^3.0.11",
+    "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "eslint": "^9.21.0",
+    "pino-pretty": "^13.0.0",
+    "prisma": "^5.22.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}
