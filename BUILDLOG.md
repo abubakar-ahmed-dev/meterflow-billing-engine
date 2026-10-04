@@ -93,3 +93,15 @@ This log honestly documents where AI assistance helped, where it made assumption
      - Stripe webhook simulation panel with signed upgrade execution, duplicate event replay (`200 duplicate_ignored`), and forged signature rejection (`400 Bad Request`).
 2. **Dashboard Helper APIs**:
    - Added `GET /v1/dashboard/overview`, `POST /v1/dashboard/simulate-webhook`, and `POST /v1/dashboard/reset-boundary`.
+
+---
+
+## Phase 7: System Guides Hub & Blog-Style Architecture Documentation
+
+### What AI Helped With
+1. **Semi-Formal Knowledge Base Authoring**:
+   - Authored 6 comprehensive architectural guides in `docs/guides/` and embedded them in web controllers (`/guides` archive and `/guides/:slug` individual article pages).
+   - Employed natural, varied section headings tailored directly to each technical domain without repetitive formulas.
+   - Maintained an accessible, semi-formal technical voice suitable for non-technical stakeholders, product leads, and senior backend evaluators.
+2. **Contextual In-App Guidance**:
+   - Integrated contextual tooltips and direct guide links into the Interactive Testing Console (`/dashboard`), connecting UI elements (idempotency keys, token sliders, quota gauges, webhook verification) directly to their corresponding architectural deep dives.

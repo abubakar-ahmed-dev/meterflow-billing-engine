@@ -105,7 +105,8 @@ npm run dev
 ```
 
 The service will boot at **`http://localhost:3000`**:
-- **Developer Console**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+- **Interactive Testing Console**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+- **Architecture & System Guides**: [http://localhost:3000/guides](http://localhost:3000/guides) (or browse markdown in [`docs/guides/`](./docs/guides/README.md))
 - **OpenAPI Swagger UI**: [http://localhost:3000/docs](http://localhost:3000/docs)
 - **Health Check**: [http://localhost:3000/health](http://localhost:3000/health)
 

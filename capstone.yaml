@@ -15,6 +15,7 @@ endpoints:
   health_check: "/health"
   api_docs: "/docs"
   developer_dashboard: "/dashboard"
+  guides_hub: "/guides"
 
 tenants:
   free_tenant_id: "00000000-0000-0000-0000-000000000001"
