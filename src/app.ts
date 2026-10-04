@@ -6,6 +6,7 @@ import { apiRouter } from "./routes/api.routes.js";
 import { guideRouter } from "./routes/guide.routes.js";
 import { BillingController } from "./controllers/billing.controller.js";
 import { DashboardController } from "./controllers/dashboard.controller.js";
+import { HomeController } from "./controllers/home.controller.js";
 import { swaggerSpec } from "./config/swagger.js";
 import { prisma } from "./db/prisma.js";
 import { logger } from "./utils/logger.js";
@@ -54,11 +55,11 @@ app.get("/health", async (_req: Request, res: Response) => {
 // Interactive Swagger / OpenAPI Documentation
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Visual Developer / Evaluator Dashboard
+// Public Explanatory Landing Page & Architecture Overview
+app.get("/", HomeController.renderHome);
+
+// Visual Developer / Evaluator Interactive Dashboard
 app.get("/dashboard", DashboardController.renderDashboard);
-app.get("/", (_req: Request, res: Response) => {
-  res.redirect("/dashboard");
-});
 
 // Architecture & Engineering System Guides Hub
 app.use("/guides", guideRouter);
