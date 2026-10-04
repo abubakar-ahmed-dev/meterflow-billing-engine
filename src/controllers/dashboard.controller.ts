@@ -39,11 +39,14 @@ export class DashboardController {
       </div>
 
       <div class="flex items-center gap-2 text-xs">
+        <a href="/guides" target="_blank" class="px-3 py-1.5 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-lg flex items-center gap-1.5 font-semibold transition">
+          <i class="fa-solid fa-book-open text-cyan-400"></i> Architecture Guides
+        </a>
         <button onclick="refreshData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Refresh Data
+          <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Refresh
         </button>
         <a href="/docs" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-book text-cyan-400"></i> OpenAPI Docs
+          <i class="fa-solid fa-book text-emerald-400"></i> OpenAPI Docs
         </a>
         <a href="https://github.com/abubakar-ahmed-dev/meterflow-billing-engine" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition">
           <i class="fa-brands fa-github"></i> GitHub
@@ -107,7 +110,12 @@ export class DashboardController {
 
                 <div class="space-y-3 text-xs">
                   <div>
-                    <label class="block text-slate-300 font-medium mb-1">Idempotency Key (Guarantees Exactly-Once)</label>
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="text-slate-300 font-medium">Idempotency Key (Guarantees Exactly-Once)</label>
+                      <a href="/guides/exactly-once-metering-and-idempotency" target="_blank" class="text-slate-400 hover:text-cyan-400 flex items-center gap-1 text-[11px]" title="How does idempotency prevent double charging? Click to read full guide">
+                        <i class="fa-solid fa-circle-question"></i> Guide
+                      </a>
+                    </div>
                     <div class="flex gap-2">
                       <input type="text" id="input-idempotency-key" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono text-xs focus:outline-none focus:border-cyan-400">
                       <button onclick="generateRandomKey()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-200" title="Generate New UUID">
@@ -123,25 +131,45 @@ export class DashboardController {
 
                   <div class="grid grid-cols-2 gap-3 pt-1">
                     <div>
-                      <label class="block text-slate-300 font-medium mb-1">Fresh Input Tokens</label>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="text-slate-300 font-medium">Fresh Input Tokens</label>
+                        <a href="/guides/ai-token-pricing-and-integer-math" target="_blank" class="text-slate-400 hover:text-cyan-400 text-[10px]" title="Standard prompt tokens. Click to read pricing guide">
+                          <i class="fa-solid fa-circle-question"></i>
+                        </a>
+                      </div>
                       <input type="number" id="input-fresh" value="1000" min="0" step="100" oninput="updatePricingPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono text-xs">
                       <span class="text-[10px] text-slate-400">$2.00 / 1M ($0.0000020 / token)</span>
                     </div>
 
                     <div>
-                      <label class="block text-slate-300 font-medium mb-1">Cached Input Tokens</label>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="text-slate-300 font-medium">Cached Input Tokens</label>
+                        <a href="/guides/ai-token-pricing-and-integer-math" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[10px] font-semibold" title="Why is cached input 75% cheaper? Click to read guide">
+                          75% Off <i class="fa-solid fa-circle-question"></i>
+                        </a>
+                      </div>
                       <input type="number" id="input-cached" value="400" min="0" step="100" oninput="updatePricingPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono text-xs">
                       <span class="text-[10px] text-emerald-400">$0.50 / 1M (75% Discount)</span>
                     </div>
 
                     <div>
-                      <label class="block text-slate-300 font-medium mb-1">Standard Output Tokens</label>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="text-slate-300 font-medium">Standard Output Tokens</label>
+                        <a href="/guides/ai-token-pricing-and-integer-math" target="_blank" class="text-slate-400 hover:text-cyan-400 text-[10px]" title="Model generation output tokens. Click to read pricing guide">
+                          <i class="fa-solid fa-circle-question"></i>
+                        </a>
+                      </div>
                       <input type="number" id="input-output" value="500" min="0" step="100" oninput="updatePricingPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono text-xs">
                       <span class="text-[10px] text-slate-400">$8.00 / 1M ($0.0000080 / token)</span>
                     </div>
 
                     <div>
-                      <label class="block text-slate-300 font-medium mb-1">Reasoning Tokens</label>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="text-slate-300 font-medium">Reasoning Tokens</label>
+                        <a href="/guides/ai-token-pricing-and-integer-math" target="_blank" class="text-purple-400 hover:text-purple-300 text-[10px] font-semibold" title="Why are reasoning tokens billed at output rate? Click to read guide">
+                          Output Rate <i class="fa-solid fa-circle-question"></i>
+                        </a>
+                      </div>
                       <input type="number" id="input-reasoning" value="200" min="0" step="100" oninput="updatePricingPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono text-xs">
                       <span class="text-[10px] text-purple-400">Billed as Output Tokens</span>
                     </div>
@@ -198,9 +226,14 @@ export class DashboardController {
         <div id="tab-boundary" class="hidden space-y-6">
           <div class="bg-slate-950 p-6 rounded-xl border border-slate-800 max-w-3xl space-y-5">
             <div>
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-traffic-light text-amber-400"></i> Quota Boundary & Status Code Honesty (Section 12 Probe 2)
-              </h3>
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-traffic-light text-amber-400"></i> Quota Boundary & Status Code Honesty (Section 12 Probe 2)
+                </h3>
+                <a href="/guides/quota-enforcement-and-http-boundaries" target="_blank" class="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-book-open"></i> Read Guide &rarr;
+                </a>
+              </div>
               <p class="text-xs text-slate-400 mt-1">
                 The boundary rule is absolute: At 999 of 1,000 calls, call 1,000 must succeed (<code class="text-emerald-400">200 OK</code>).
                 Call 1,001 must be blocked (<code class="text-red-400">429 Too Many Requests</code>).
@@ -244,9 +277,14 @@ export class DashboardController {
         <div id="tab-webhooks" class="hidden space-y-6">
           <div class="bg-slate-950 p-6 rounded-xl border border-slate-800 max-w-3xl space-y-5">
             <div>
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa-brands fa-stripe text-indigo-400"></i> Stripe Test-Mode Webhook Simulator (Probe 3 & 4)
-              </h3>
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i class="fa-brands fa-stripe text-indigo-400"></i> Stripe Test-Mode Webhook Simulator (Probe 3 & 4)
+                </h3>
+                <a href="/guides/stripe-webhooks-and-cryptographic-security" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-book-open"></i> Read Guide &rarr;
+                </a>
+              </div>
               <p class="text-xs text-slate-400 mt-1">
                 Simulates authentic Stripe events with genuine HMAC-SHA256 signatures, testing signature verification, plan upgrades, and deduplication.
               </p>
