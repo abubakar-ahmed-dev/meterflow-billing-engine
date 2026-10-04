@@ -7,15 +7,16 @@ test: "npm run test"
 base_url: "http://localhost:3000"
 
 endpoints:
+  homepage: "/"
+  developer_dashboard: "/dashboard"
+  guides_hub: "/guides"
+  api_docs: "/docs"
   billable_meter: "/v1/meter/billable"
   dummy_generate: "/v1/generate"
   usage_rollup: "/v1/usage"
   billing_checkout: "/v1/billing/checkout"
   stripe_webhook: "/v1/webhooks/stripe"
   health_check: "/health"
-  api_docs: "/docs"
-  developer_dashboard: "/dashboard"
-  guides_hub: "/guides"
 
 tenants:
   free_tenant_id: "00000000-0000-0000-0000-000000000001"

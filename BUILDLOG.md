@@ -105,3 +105,23 @@ This log honestly documents where AI assistance helped, where it made assumption
    - Maintained an accessible, semi-formal technical voice suitable for non-technical stakeholders, product leads, and senior backend evaluators.
 2. **Contextual In-App Guidance**:
    - Integrated contextual tooltips and direct guide links into the Interactive Testing Console (`/dashboard`), connecting UI elements (idempotency keys, token sliders, quota gauges, webhook verification) directly to their corresponding architectural deep dives.
+
+---
+
+## Phase 8: Homepage Experience, Progressive Disclosure & Unique Theme Redesign
+
+### What AI & User Collaboration Refined
+1. **De-cluttering & Separation of Concerns**:
+   - The user identified that immediately redirecting `/` to the dense interactive dashboard caused cognitive overload and visual clutter on initial page load.
+   - Designed and implemented a dedicated Product Homepage at `GET /` (`HomeController.renderHome`) presenting a spacious, high-level architectural overview, explaining what MeterFlow is, what problems it solves, user pathways for distinct personas (evaluators, architects, API consumers), and foundational guarantees.
+2. **Unique Luxury Fintech Color Palette**:
+   - Strictly adhered to user constraints eliminating generic blue, green, purple, and dark orange palettes.
+   - Introduced an editorial **Obsidian & Champagne Gold / Sand / Titanium** aesthetic (`#08090b` matte obsidian, `#111317` surface cards, `#d4af37` / `#e5c378` champagne gold accents, `#e6e4df` titanium sand typography).
+3. **Progressive Disclosure on Interactive Console (`/dashboard`)**:
+   - Refactored the dashboard layout into clear, sequential steps:
+     - Step 1: Active Test Tenant Scenario selector (cards with clear scenario labels: Free tier, Pro tier, Section 12 999-call boundary probe, and 402 delinquent subscription probe).
+     - Step 2: Real-time Quota & Spend Gauges with subtle gold/ochre progress bars.
+     - Step 3: Acceptance Probe Laboratories in a clean tabbed container with live response inspection.
+     - Step 4: Refined, toggleable Activity & Audit Ledger avoiding viewport clutter.
+4. **Unified Visual Identity Across All Views**:
+   - Propagated the Obsidian & Champagne Gold design system to `/` (Homepage), `/dashboard` (Testing Console), `/guides` (Documentation Hub), and `/guides/:slug` (Individual Article Pages).

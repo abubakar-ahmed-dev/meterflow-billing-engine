@@ -24,7 +24,7 @@
   - Reasoning ("Thinking") Tokens: Billed identically to output tokens ($8,000$ nano-dollars / token)
 - **Stripe Dual-Mode Webhooks**: Cryptographic HMAC-SHA256 signature verification (`whsec_...`) and event deduplication. Supports both live Stripe CLI forwarding and local mock simulation without needing a merchant account.
 - **Background Jobs & Observability**: Hourly background reconciliation worker with exponential backoff retries, structured JSON logging with secret redaction (Pino), and 80%/100% usage threshold alerts.
-- **Visual Console & API Docs**: Built-in developer dashboard at `/dashboard` and interactive Swagger OpenAPI docs at `/docs`.
+- **Homepage, Visual Console & Architecture Hub**: Dedicated explanatory product homepage at `/`, interactive developer testing sandbox at `/dashboard`, engineering knowledge base at `/guides`, and OpenAPI 3.0 documentation at `/docs`.
 
 ```text
                                   CLIENT REQUEST
@@ -105,6 +105,7 @@ npm run dev
 ```
 
 The service will boot at **`http://localhost:3000`**:
+- **Product Homepage & Architectural Overview**: [http://localhost:3000/](http://localhost:3000/)
 - **Interactive Testing Console**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
 - **Architecture & System Guides**: [http://localhost:3000/guides](http://localhost:3000/guides) (or browse markdown in [`docs/guides/`](./docs/guides/README.md))
 - **OpenAPI Swagger UI**: [http://localhost:3000/docs](http://localhost:3000/docs)
