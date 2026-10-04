@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import { apiRouter } from "./routes/api.routes.js";
+import { guideRouter } from "./routes/guide.routes.js";
 import { BillingController } from "./controllers/billing.controller.js";
 import { DashboardController } from "./controllers/dashboard.controller.js";
 import { swaggerSpec } from "./config/swagger.js";
@@ -58,6 +59,9 @@ app.get("/dashboard", DashboardController.renderDashboard);
 app.get("/", (_req: Request, res: Response) => {
   res.redirect("/dashboard");
 });
+
+// Architecture & Engineering System Guides Hub
+app.use("/guides", guideRouter);
 
 // Mount V1 API Router
 app.use("/v1", apiRouter);
