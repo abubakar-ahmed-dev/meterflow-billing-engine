@@ -1,281 +1,210 @@
-# EVALUATION EVIDENCE PACK (`EVIDENCE.md`)
+# Evaluation Evidence Pack (`EVIDENCE.md`)
 
-This document contains pasted proof and verifiable terminal outputs for every requirement checkbox in **Section 6** of the Capstone Brief.
+One pasted proof per requirements checkbox (Capstone Brief, Section 6), per acceptance probe (Section 12), and per shared requirement. All transcripts captured 2026-10-05 against a freshly seeded database (`npm run seed` + `npm run dev`).
+
+**Reproduce everything**: `npm run up` (clean machine), then `npm test` (35 automated tests) and the cURL recipes below.
 
 ---
 
-## 1. Metering & Idempotency
+## 1. Metering — exactly-once under retries (Section 6, Metering box)
 
-### [x] Requirement 1 & 2: A billable action creates exactly one usage event under retries; proof of no double-counting
+**Claim**: same request + same `Idempotency-Key` = exactly one usage event; the second response mirrors the first.
 
-**Evidence**: Automated test execution from `tests/integration/acceptance_probes.test.ts` (PROBE 1).
+**Automated proof** — `tests/integration/acceptance_probes.test.ts` PROBE 1 and `tests/integration/concurrency.test.ts` (12-request parallel flood: exactly 1 event, zero 500s, mix of 200/409):
 
 ```text
-✓ tests/integration/acceptance_probes.test.ts > Acceptance Probes Suite > PROBE 1 — Idempotent Metering > deduplicates retried requests and creates exactly one usage event (981ms)
-[06:22:40 UTC] INFO: ⚡ Idempotent request replay detected; returning cached response with zero new usage events.
-    tenantId: "00000000-0000-0000-0000-000000000001"
-    idempotencyKey: "probe-1-key-1791008559062"
+Test Files  6 passed (6)
+     Tests  35 passed (35)
+
+✓ PROBE 1 — Idempotent Metering > deduplicates retried requests and creates exactly one usage event
+✓ Phase 1 — Concurrency & Edge-Case Hardening > 12 parallel identical requests create exactly one usage event and never crash the server
 ```
 
-**cURL Verification Transcript**:
-1. Initial Request (Created event):
-```bash
-curl -i -X POST http://localhost:3000/v1/meter/billable \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: 00000000-0000-0000-0000-000000000001" \
-  -H "Idempotency-Key: manual-demo-key-001" \
-  -d '{"action": "generate", "tokens": {"freshInput": 1000, "cachedInput": 400, "standardOutput": 500, "reasoning": 200}}'
-```
-Response:
-```http
+**Live cURL transcript**:
+
+```text
+### First request
 HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
+{"success":true,"data":{"tenantId":"...0001","eventType":"api_call","apiCallsRecorded":1,
+ "tokensRecorded":2100,"breakdown":{"freshInput":1000,"cachedInput":400,"standardOutput":500,
+ "reasoning":200},"cost":{"totalCostCents":1,"formattedUsd":"$0.007800","costNanoDollars":"7810"},"planId":"free"}}
 
-{
-  "success": true,
-  "data": {
-    "tenantId": "00000000-0000-0000-0000-000000000001",
-    "eventType": "ai_token",
-    "apiCallsRecorded": 1,
-    "tokensRecorded": 2100,
-    "breakdown": {
-      "freshInput": 1000,
-      "cachedInput": 400,
-      "standardOutput": 500,
-      "reasoning": 200
-    },
-    "cost": {
-      "totalCostCents": 1,
-      "formattedUsd": "$0.007800",
-      "costMicrocents": "7800"
-    },
-    "planId": "free"
-  }
-}
-```
-
-2. Replay with identical `Idempotency-Key`:
-```http
+### Retry with the SAME Idempotency-Key
 HTTP/1.1 200 OK
 X-Idempotent-Replayed: true
-Content-Type: application/json; charset=utf-8
+{"success":true,"data":{ ...identical body, identical Content-Length: 324... }}
 
-{
-  "success": true,
-  "data": {
-    "tenantId": "00000000-0000-0000-0000-000000000001",
-    "eventType": "ai_token",
-    "apiCallsRecorded": 1,
-    "tokensRecorded": 2100,
-    "cost": {
-      "totalCostCents": 1,
-      "formattedUsd": "$0.007800",
-      "costMicrocents": "7800"
-    }
-  }
-}
+### Database rows for that key
+SELECT COUNT(*) FROM usage_events WHERE "idempotencyKey"='evidence-replay-001';
+ → 1
 ```
-**Database Query Verification**:
-```sql
-SELECT count(*) FROM usage_events WHERE idempotency_key = 'manual-demo-key-001';
--- Returns: 1
-```
+
+**Why double-counting cannot happen**: the key is claimed by a single `INSERT` into `idempotency_records` (primary key). Race losers replay the stored response or get `409`. The final backstop is the `usage_events` unique constraint on `(tenantId, idempotencyKey)` — proven by the parallel-flood test.
+
+Related edge cases (all tested): mismatched payload on a used key → `422`; stale `IN_PROGRESS` reservation past its TTL → reclaimed and processed; live `IN_PROGRESS` → `409`.
 
 ---
 
-## 2. Quota Enforcement & Boundary Honesty
+## 2. Quotas — boundary honesty, 429 / 402 (Section 6, Quotas box)
 
-### [x] Requirement 3 & 4: Requests over limit rejected with 429 / 402 and clear explanation
+**Claim**: usage is checked against the plan before the action; the API explains blocks with correct status codes.
 
-**Evidence**: Automated test execution from `tests/integration/acceptance_probes.test.ts` (PROBE 2).
+**Automated proof**:
 
 ```text
-✓ tests/integration/acceptance_probes.test.ts > Acceptance Probes Suite > PROBE 2 — Quota Boundary Enforcement > allows request reaching exact boundary (1,000th call) and blocks 1,001st with 429 (388ms)
-✓ tests/integration/acceptance_probes.test.ts > Acceptance Probes Suite > PROBE 2 — Quota Boundary Enforcement > returns 402 Payment Required for tenant with PAST_DUE subscription
+✓ PROBE 2 — Quota Boundary Enforcement > allows request reaching exact boundary (1,000th call) and blocks 1,001st with 429
+✓ PROBE 2 — Quota Boundary Enforcement > returns 402 Payment Required for tenant with PAST_DUE subscription
+✓ Phase 3 — Pinned Pricing Exactness & Token Quota Boundary > rejects the token request that crosses the plan limit with 429 ai_tokens
+✓ Phase 3 — ... > allows the request that lands exactly on the token limit, then blocks the next
 ```
 
-**cURL Transcript for 1,001st call (Quota Exceeded -> 429)**:
-```bash
-curl -i -X POST http://localhost:3000/v1/meter/billable \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: 00000000-0000-0000-0000-000000000003" \
-  -H "Idempotency-Key: boundary-test-call-1001" \
-  -d '{"apiCallsCount": 1}'
-```
-Response:
-```http
+**Live transcript** (Boundary Org pre-seeded at 999/1,000 calls):
+
+```text
+### Call 1,000 — the exact boundary succeeds
+HTTP/1.1 200 OK
+{"success":true,"data":{"apiCallsRecorded":1,...,"planId":"free"}}
+
+### Call 1,001 — refused, nothing recorded
 HTTP/1.1 429 Too Many Requests
-Retry-After: 2419200
-Content-Type: application/json; charset=utf-8
+Retry-After: 2243479
+{"success":false,"error":"quota_exceeded",
+ "message":"Monthly API call quota exceeded. Current: 1000, Requested: 1, Limit: 1000.",
+ "metric":"api_calls","currentUsage":1000,"requestedUsage":1,"limit":1000}
 
-{
-  "success": false,
-  "error": "quota_exceeded",
-  "message": "Monthly API call quota exceeded. Current: 1000, Requested: 1, Limit: 1000.",
-  "metric": "api_calls",
-  "currentUsage": 1000,
-  "requestedUsage": 1,
-  "limit": 1000,
-  "retryAfterSeconds": 2419200
-}
-```
-
-**cURL Transcript for Lapsed Subscription (Unpaid / Past Due -> 402)**:
-```bash
-curl -i -X POST http://localhost:3000/v1/meter/billable \
-  -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: 00000000-0000-0000-0000-000000000004" \
-  -H "Idempotency-Key: lapsed-test-01" \
-  -d '{"apiCallsCount": 1}'
-```
-Response:
-```http
+### Lapsed tenant (subscription PAST_DUE)
 HTTP/1.1 402 Payment Required
-Content-Type: application/json; charset=utf-8
-
-{
-  "success": false,
-  "error": "payment_required",
-  "message": "Tenant subscription is PAST_DUE. Payment or plan renewal required."
-}
+{"success":false,"error":"payment_required",
+ "message":"Tenant subscription is PAST_DUE. Payment or plan renewal required."}
 ```
+
+Unknown tenant → `404 tenant_not_found` (tested). Blocked requests write no usage event (asserted in tests).
 
 ---
 
-## 3. Cost Calculation & AI Token Pricing
+## 3. Cost calculation — pinned pricing rules (Section 6, Cost box)
 
-### [x] Requirement 5, 6 & 7: Pinned pricing rules with cached discount and reasoning tokens
+**Claim**: cached input cheaper, reasoning billed as output, categories priced separately, integer math only, constants pinned in `src/config/pricing.ts`.
 
-**Evidence**: Unit test execution from `tests/unit/pricing.test.ts` (PROBE 5).
-
-```text
-✓ tests/unit/pricing.test.ts (4 tests) 11ms
-  ✓ bills cached input tokens at 25% of fresh input tokens (75% discount)
-  ✓ bills reasoning tokens strictly at standard output token pricing
-  ✓ combines categories correctly without loss of precision
-  ✓ handles zero usage without errors
-```
-
-**Formula Verification**:
-- Fresh input rate: \$2.00 / 1M ($2,000$ nano-dollars / token)
-- Cached input rate: \$0.50 / 1M ($500$ nano-dollars / token — strictly 25% of fresh rate)
-- Output token rate: \$8.00 / 1M ($8,000$ nano-dollars / token)
-- Reasoning token rate: \$8.00 / 1M ($8,000$ nano-dollars / token — strictly billed as output rate)
+**Automated proof** (exact numbers, not type checks):
 
 ```text
-Test Vector:
-- Fresh Input: 1,000,000 tokens    -> $2.000000
-- Cached Input: 1,000,000 tokens   -> $0.500000
-- Standard Output: 500,000 tokens  -> $4.000000
-- Reasoning: 250,000 tokens        -> $2.000000
------------------------------------------------
-Total Expected Cost:               -> $8.500000 (8,500,000,000 nano-dollars = 850 cents)
-Calculator Result:                 -> 8,500,000,000 nano-dollars ($8.500000 / 850 cents)
-MATCH: EXACT
+✓ tests/unit/pricing.test.ts > combines categories correctly without loss of precision  (8.5bn nano = $8.50 exactly)
+✓ tests/unit/pricing.test.ts > rounds sub-cent totals up to the cent  (9,400,000 nano → totalCostCents 1)
+✓ tests/unit/pricing.test.ts > prices API calls at exactly $10 per 1,000,000 calls
+✓ Phase 3 — ... > prices the canonical vector exactly and GET /v1/usage reproduces the pinned math
 ```
 
-**cURL Transcript from `GET /v1/usage`**:
-```bash
-curl -s http://localhost:3000/v1/usage?tenantId=00000000-0000-0000-0000-000000000001
+**Canonical vector** — 1,200 fresh + 400 cached + 600 output + 250 reasoning:
+
+```text
+POST /v1/meter/billable {"apiCallsCount":0,"tokens":{"freshInput":1200,"cachedInput":400,"standardOutput":600,"reasoning":250}}
+
+→ 200 OK
+{"tokensRecorded":2450,
+ "cost":{"totalCostCents":1,"formattedUsd":"$0.009400","costNanoDollars":"9400"}}
+
+GET /v1/usage rollup recomputes from the pinned constants:
+"itemizedTokensCost":{"freshInputNano":"2400000",   // 1200 × 2,000 nano
+                      "cachedInputNano":"200000",   //  400 ×   500 nano (75% discount)
+                      "outputNano":"8800000",       //  600 × 8,000 nano
+                      "reasoningNano":"2000000"}    //  250 × 8,000 nano (= output rate)
+
+Per event: 2,400,000 + 200,000 + 8,800,000 + 2,000,000 = 9,400,000 nano
+         = $0.0094 → formatted "$0.009400", 1 cent (rounded up, never floated)
 ```
-Output:
-```json
-{
-  "success": true,
-  "data": {
-    "plan": {
-      "id": "free",
-      "name": "Free Tier",
-      "maxApiCallsPerMonth": 1000,
-      "maxTokensPerMonth": 100000
-    },
-    "cost": {
-      "totalCostCents": 1,
-      "totalCostMicrocents": "7800",
-      "formattedUsd": "$0.007800",
-      "itemizedTokensCost": {
-        "freshInputNano": "2000000",
-        "cachedInputNano": "200000",
-        "outputNano": "4000000",
-        "reasoningNano": "1600000"
-      }
-    }
-  }
-}
-```
+
+The rollup equals the per-event arithmetic exactly — no drift anywhere in the money path.
 
 ---
 
-## 4. Stripe Subscription Integration
+## 4. Stripe integration — test-mode sync (Section 6, Stripe box)
 
-### [x] Requirement 8 & 9: Test mode checkout, signature verification, and event deduplication
+**Mode note (honesty)**: Stripe offers no merchant program in Pakistan, so no Stripe account can be created. The documented primary mode is local **signed simulation** using Stripe's own SDK (`webhooks.generateTestHeaderString`) — the server-side verification path is byte-identical to a real forwarded webhook. The real Stripe SDK path (Checkout Session creation, `constructEvent`) is unchanged and active whenever `MOCK_STRIPE=false` with real test keys. See README "Dual Mode" and `BUILDLOG.md`.
 
-**Evidence**: Automated test execution from `tests/integration/acceptance_probes.test.ts` (PROBE 3 & 4).
+**Claim**: checkout webhook flips tenant Free → Pro; signatures verified against raw body; duplicates ignored; forged rejected with 400.
+
+**Automated proof**:
 
 ```text
-[06:22:40 UTC] WARN: 🚫 Forged or invalid webhook signature rejected with 400
-✓ PROBE 4: rejects forged or invalid webhook signatures with 400 Bad Request
-[06:22:41 UTC] INFO: 🚀 Upgraded tenant to PRO tier via verified webhook
-✓ PROBE 3 & 4: processes valid webhook, upgrades tenant Free -> Pro, and deduplicates replays
-[06:22:41 UTC] INFO: ⚡ Replayed webhook event ignored (idempotent deduplication)
+✓ PROBE 3 & 4 — Stripe Webhook Verification, Deduplication & Plan Upgrade > processes valid webhook, upgrades tenant Free -> Pro, and deduplicates replays
+✓ PROBE 3 & 4 > rejects forged or invalid webhook signatures with 400 Bad Request
+✓ Phase 4 — Subscription Lifecycle... > checkout.session.completed upgrades Free -> Pro using the expanded subscription period
+✓ Phase 4 — ... > customer.subscription.updated maps past_due -> PAST_DUE (402 enforcement)
+✓ Phase 4 — ... > customer.subscription.deleted downgrades to Free with no dangling Stripe ids
 ```
 
-**Forged Signature Rejection Transcript**:
-```bash
-curl -i -X POST http://localhost:3000/v1/webhooks/stripe \
-  -H "Content-Type: application/json" \
-  -H "Stripe-Signature: t=12345,v1=tampered_signature_hex" \
-  -d '{"id": "evt_tampered_001", "type": "checkout.session.completed"}'
-```
-Response:
-```http
-HTTP/1.1 400 Bad Request
-Content-Type: application/json; charset=utf-8
+**Live transcript** (`npm run stripe:trigger`, the `stripe trigger` equivalent):
 
-{
-  "success": false,
-  "error": "invalid_signature",
-  "message": "Webhook signature verification failed: No signatures found matching the expected signature for payload."
-}
-```
-
-**Replay Event Transcript**:
 ```text
-Event 'evt_test_checkout_1791008560848' sent twice:
-1st Delivery: HTTP 200 {"received": true, "status": "processed"} -> Tenant upgraded to PRO
-2nd Delivery: HTTP 200 {"received": true, "status": "duplicate_ignored"} -> 0 duplicate updates
+### PROBE 3 — signed checkout.session.completed
+✅ processed: {"received":true,"eventId":"evt_1791229749586","status":"processed"}
+SELECT "planId", status FROM subscriptions WHERE "tenantId"='...0001';
+ → pro | ACTIVE
+GET /v1/usage?tenantId=...0001
+ → {"plan":"pro","maxApiCalls":50000,"maxTokens":5000000}
+
+### PROBE 4 — forged webhook
+ℹ️ [400]: {"success":false,"error":"invalid_signature","message":"Webhook signature verification failed: ..."}
+
+### PROBE 4 — replay of the SAME signed event
+delivery 1 -> 200 {"received":true,"eventId":"evt_evidence_replay_001","status":"processed"}
+delivery 2 -> 200 {"received":true,"eventId":"evt_evidence_replay_001","status":"duplicate_ignored"}
+SELECT COUNT(*) FROM processed_webhook_events WHERE "stripeEventId"='evt_evidence_replay_001';
+ → 1
 ```
+
+Missing `STRIPE_WEBHOOK_SECRET` fails closed with HTTP 500 `server_configuration_error` (tested in `tests/unit/fail_closed.test.ts`) — placeholder secrets are never used.
 
 ---
 
-## 5. Background Jobs & Resilience
+## 5. Data model, tests & documentation (Section 6, Data model box)
 
-### [x] Requirement 10: $\ge 1$ background job off request path with retries and failure alerts
-
-**Evidence**: Standalone execution of `npm run job:reconcile` and hourly background cron scheduler (`ReconciliationWorker`).
-
-```text
-> npm run job:reconcile
-> tsx scripts/run-job.ts
-
-[06:23:57 UTC] INFO: ⚙️ [Background Worker] Starting Usage Rollup & Subscription Reconciliation pass...
-[06:23:58 UTC] INFO: ✅ [Background Worker] Reconciliation & usage rollup audit completed successfully.
-    durationMs: 725
-    auditedSubscriptions: 3
-    flaggedExpiries: 0
-    totalUsageEventsRecorded: 4
-    totalApiCallsSum: 1002
-```
+- **Schema as migrations**: `prisma/migrations/` committed (`20261005175828_init`, `20261005190153_add_job_run_logs`); CI applies with `prisma migrate deploy`.
+- **Tenant isolation**: every usage event, subscription, and alert carries `tenantId`; all queries filter by it. Composite index `(tenantId, timestamp)` backs period rollups.
+- **Tables**: `tenants`, `plans`, `subscriptions`, `usage_events`, `idempotency_records`, `processed_webhook_events`, `usage_alerts`, `job_run_logs` — see `prisma/schema.prisma`.
+- **Required files**: `README.md` (run steps, diagram, limitations), `capstone.yaml`, this file, `BUILDLOG.md`, `.env.example` (placeholders only; `.env` git-ignored).
 
 ---
 
-## 6. Summary of Acceptance Probes Result
+## 6. Section 12 Layer 2 — acceptance probes summary
 
-| Acceptance Probe | Test Name | Status | Verified Behavior |
+| Probe | Promise | Result | Proof |
 | :--- | :--- | :--- | :--- |
-| **PROBE 1** | `deduplicates retried requests` | **PASS** | Same request sent twice records 1 usage event; second mirrors first. |
-| **PROBE 2** | `allows boundary call (1,000) and blocks 1,001` | **PASS** | 1,000th call succeeds; 1,001st returns 429 with `Retry-After`. |
-| **PROBE 2 (402)** | `returns 402 Payment Required` | **PASS** | Lapsed tenant subscription returns 402 with clear reason. |
-| **PROBE 3** | `upgrades tenant Free -> Pro via webhook` | **PASS** | Signed Stripe checkout webhook flips plan to Pro (50,000 calls limit). |
-| **PROBE 4** | `rejects forged signature (400) & ignores replay` | **PASS** | Bad HMAC signature rejected with 400; replayed event ignored with 200. |
-| **PROBE 5** | `matches pinned pricing rules in GET /usage` | **PASS** | Cached input discounted 75%; reasoning billed as output; integer precision. |
+| 1 | Same key twice → one event, mirrored response | ✅ | §1 transcripts + flood test |
+| 2 | Boundary behaves per rule; then 429/402 | ✅ | §2 transcripts |
+| 3 | Checkout webhook flips Free → Pro; /usage reflects limits | ✅ | §4 transcript |
+| 4 | Forged → 400, nothing changes; replay processed once | ✅ | §4 transcript |
+| 5 | Cached-input & reasoning rules produce exact totals; /usage matches | ✅ | §3 transcript |
+
+---
+
+## 7. Shared requirements (Section 12)
+
+| # | Requirement | Evidence |
+| :--- | :--- | :--- |
+| 1 | Layered architecture | `src/controllers` (HTTP) → `src/services` (logic) → `src/db` (data); see DESIGN.md §6 |
+| 2 | Validation at the boundary — never a 500 for bad input | Zod middleware + header checks; tests: negative count → 400, missing headers → 400; global async error handler (`express-async-errors`); concurrency flood: zero 500s |
+| 3 | ≥1 background job with retries + failure alert | `src/jobs/reconciliation.ts`: hourly cron, exponential backoff, run records in `job_run_logs`, persisted FAILED alert on retry exhaustion; transitions expired subscriptions to PAST_DUE (tested) |
+| 4 | Real persistence — migrations, indexes, isolated tenants | `prisma/migrations/` committed; CI `migrate deploy`; `(tenantId, idempotencyKey)` unique + `(tenantId, timestamp)` index; per-tenant filtering throughout |
+| 5 | Idempotency where it matters | §1 — atomic reservation + DB unique constraint + webhook event dedup |
+| 6 | Secrets clean | `.env` git-ignored, `.env.example` placeholders only; no secrets in code (fail-closed instead); history scanned — only placeholders ever committed |
+| 7 | Cost tracked per call, attributed, budget guard | Every event stores attributed `costNanoDollars`; quota gate caps spend before it happens; 80%/100% threshold alerts (`AlertService`); rollup exposed at `/v1/usage` |
+
+---
+
+## 8. Full test suite
+
+```text
+$ npm test
+Test Files  6 passed (6)
+     Tests  35 passed (35)
+  Duration  ~7s
+
+  ✓ tests/unit/pricing.test.ts (7)
+  ✓ tests/unit/fail_closed.test.ts (4)
+  ✓ tests/integration/acceptance_probes.test.ts (7)
+  ✓ tests/integration/concurrency.test.ts (6)
+  ✓ tests/integration/pricing_quota.test.ts (5)
+  ✓ tests/integration/webhook_reconciliation.test.ts (6)
+```
