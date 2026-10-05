@@ -40,10 +40,12 @@
                                         │
                                         ▼
                          ┌─────────────────────────────┐
-                         │      Idempotency Check      │
-                         │  - Key exists & completed?  │──► [Yes] ──► Return Cached JSON (0 new events)
-                         │  - Payload altered? (422)   │
-                         │  - In progress? (409)       │
+                         │    Atomic Key Reservation   │
+                         │  single INSERT; on race:    │
+                         │  completed? → replay (200)  │
+                         │  payload changed? → 422     │
+                         │  in progress? → 409         │
+                         │  stale TTL? → reclaim       │
                          └──────────────┬──────────────┘
                                         │ [New Key]
                                         ▼
