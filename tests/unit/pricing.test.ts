@@ -52,4 +52,34 @@ describe("CostCalculator Unit Tests (PROBE 5 & Pricing Math)", () => {
     expect(result.totalTokens).toBe(0);
     expect(result.formattedUsd).toBe("$0.000000");
   });
+
+  it("rounds sub-cent totals up to the cent and formats the exact dollar figure", () => {
+    // 1200*2000 + 400*500 + 600*8000 + 250*8000 = 9,400,000 nano = $0.0094 = 0.94 cents
+    const result = CostCalculator.calculateTokenCost({
+      freshInput: 1200,
+      cachedInput: 400,
+      standardOutput: 600,
+      reasoning: 250,
+    });
+
+    expect(result.totalCostNano).toBe("9400000");
+    expect(result.formattedUsd).toBe("$0.009400");
+    expect(result.totalCostCents).toBe(1); // rounded up, never down, never floated
+  });
+
+  it("prices API calls at exactly $10 per 1,000,000 calls", () => {
+    expect(CostCalculator.calculateApiCallCost(1_000_000)).toBe(10_000_000_000n); // $10.00 in nano
+    expect(CostCalculator.calculateApiCallCost(0)).toBe(0n);
+  });
+
+  it("combines token cost and api-call cost into one exact integer total", () => {
+    const tokenNano = BigInt(
+      CostCalculator.calculateTokenCost({ freshInput: 1200, cachedInput: 400, standardOutput: 600, reasoning: 250 })
+        .totalCostNano
+    );
+    const apiNano = CostCalculator.calculateApiCallCost(1); // 10,000 nano
+
+    // Combined exact total: 9,410,000 nano ($0.00941); stored as 9410 micro-dollars.
+    expect(tokenNano + apiNano).toBe(9_410_000n);
+  });
 });

@@ -713,7 +713,7 @@ export class DashboardController {
             <div class="text-xs font-semibold text-sand-300">Accrued Month Spend</div>
             <div class="text-2xl font-black font-mono text-champagne-300">\${currentTenant.cost.formattedUsd}</div>
             <div class="text-[10px] text-sand-400 font-mono">
-              Zero-Float Ledger: \${currentTenant.cost.costMicrocents} microcents
+              Zero-Float Ledger: \${currentTenant.cost.costNanoDollars} nano-dollars
             </div>
           </div>
         \`;
@@ -729,7 +729,7 @@ export class DashboardController {
             <td class="py-2.5 text-sand-400">\${new Date(e.timestamp).toLocaleTimeString()}</td>
             <td class="py-2.5 text-sand-200 truncate max-w-[120px] font-sans font-medium">\${e.tenantName}</td>
             <td class="py-2.5 text-sand-300">\${e.totalTokens.toLocaleString()}</td>
-            <td class="py-2.5 text-champagne-300 font-bold">\$\${(Number(e.costMicrocents) / 1000000).toFixed(6)}</td>
+            <td class="py-2.5 text-champagne-300 font-bold">\$\${(Number(e.costNanoDollars) / 1000000000).toFixed(9)}</td>
             <td class="py-2.5 text-sand-400 truncate max-w-[140px]" title="\${e.idempotencyKey}">\${e.idempotencyKey}</td>
           </tr>
         \`).join("");

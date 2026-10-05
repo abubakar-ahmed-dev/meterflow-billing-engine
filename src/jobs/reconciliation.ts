@@ -6,8 +6,15 @@ export class ReconciliationWorker {
   private static isRunning = false;
 
   /**
-   * Executes the usage aggregation rollup and subscription reconciliation pass.
-   * Features retry logic and failure alerts (Shared Requirement #3).
+   * Executes the subscription reconciliation pass and usage rollup audit.
+   *
+   * Actions (Shared Requirement #3: slow work off the request path, retries +
+   * failure alert):
+   * 1. ACTIVE subscriptions whose billing period ended without a renewal webhook
+   *    are transitioned to PAST_DUE — quota enforcement then honestly answers 402.
+   * 2. Usage-event rollup totals are audited for drift.
+   * 3. Every run is persisted to job_run_logs; an exhausted retry budget is a
+   *    persisted FAILED alert, not just a log line.
    */
   public static async executePass(retryCount: number = 0, maxRetries: number = 3): Promise<void> {
     if (this.isRunning) {
@@ -17,72 +24,74 @@ export class ReconciliationWorker {
 
     this.isRunning = true;
     const startTime = Date.now();
-    logger.info("⚙️ [Background Worker] Starting Usage Rollup & Subscription Reconciliation pass...");
+    logger.info("⚙️ [Background Worker] Starting reconciliation pass...");
 
     try {
-      // 1. Audit active tenants and check for subscription expiry
-      const subscriptions = await prisma.subscription.findMany({
-        where: { status: "ACTIVE" },
-        include: { tenant: true, plan: true },
+      // 1. Subscription reconciliation: expire lapsed periods.
+      const lapsed = await prisma.subscription.updateMany({
+        where: {
+          status: "ACTIVE",
+          currentPeriodEnd: { lt: new Date() },
+          planId: { not: "free" },
+        },
+        data: { status: "PAST_DUE" },
       });
 
-      const now = new Date();
-      let auditedCount = 0;
-      let expiredCount = 0;
-
-      for (const sub of subscriptions) {
-        auditedCount++;
-        // If current period has ended and no renewal webhook arrived, mark for review
-        if (sub.currentPeriodEnd < now && sub.planId !== "free") {
-          logger.warn(
-            { tenantId: sub.tenantId, planId: sub.planId, periodEnd: sub.currentPeriodEnd },
-            "⚠️ Subscription period ended without renewal webhook. Transitioning to past_due check."
-          );
-          expiredCount++;
-        }
+      if (lapsed.count > 0) {
+        logger.warn(
+          { transitioned: lapsed.count },
+          "⚠️ [Background Worker] Subscriptions past period end without renewal moved to PAST_DUE (402 enforcement active)."
+        );
       }
 
-      // 2. High-volume usage rollups audit
+      // 2. Usage rollup audit.
       const usageSummary = await prisma.usageEvent.aggregate({
         _count: { id: true },
         _sum: {
           apiCallsCount: true,
-          tokensInputFresh: true,
-          tokensInputCached: true,
-          tokensOutputStandard: true,
-          tokensOutputReasoning: true,
-          costMicrocents: true,
+          costNanoDollars: true,
         },
       });
 
       const durationMs = Date.now() - startTime;
-      logger.info(
-        {
-          durationMs,
-          auditedSubscriptions: auditedCount,
-          flaggedExpiries: expiredCount,
-          totalUsageEventsRecorded: usageSummary._count.id,
-          totalApiCallsSum: usageSummary._sum.apiCallsCount || 0,
-        },
-        "✅ [Background Worker] Reconciliation & usage rollup audit completed successfully."
-      );
+      const detail = JSON.stringify({
+        durationMs,
+        subscriptionsMovedToPastDue: lapsed.count,
+        totalUsageEvents: usageSummary._count.id,
+        totalApiCalls: usageSummary._sum.apiCallsCount || 0,
+        totalCostNanoDollars: (usageSummary._sum.costNanoDollars || 0n).toString(),
+      });
+
+      await prisma.jobRunLog.create({
+        data: { jobName: "reconciliation", status: "SUCCESS", detail },
+      });
+
+      logger.info({ durationMs, subscriptionsMovedToPastDue: lapsed.count }, "✅ [Background Worker] Reconciliation pass completed.");
     } catch (error) {
       logger.error({ error, attempt: retryCount + 1 }, "❌ [Background Worker] Error during reconciliation pass.");
 
       if (retryCount < maxRetries) {
         const backoffMs = Math.pow(2, retryCount) * 1000;
-        logger.info(`🔄 Retrying reconciliation pass in ${backoffMs}ms (attempt ${retryCount + 2}/${maxRetries})...`);
+        logger.info(`🔄 Retrying reconciliation pass in ${backoffMs}ms (attempt ${retryCount + 2}/${maxRetries + 1})...`);
         setTimeout(() => {
           this.isRunning = false;
-          this.executePass(retryCount + 1, maxRetries);
+          this.executePass(retryCount + 1, maxRetries).catch(() => {});
         }, backoffMs);
         return;
-      } else {
-        logger.fatal(
-          { error },
-          "🚨 [CRITICAL ALERT] Background reconciliation worker exhausted max retries! Alert sent to on-call."
-        );
       }
+
+      // Retry budget exhausted: persisted failure alert (Shared Requirement #3).
+      await prisma.jobRunLog.create({
+        data: {
+          jobName: "reconciliation",
+          status: "FAILED",
+          detail: `ALERT: reconciliation failed after ${maxRetries + 1} attempts: ${(error as Error).message}`,
+        },
+      });
+      logger.fatal(
+        { error },
+        "🚨 [CRITICAL ALERT] Reconciliation worker exhausted retries. Failure persisted to job_run_logs for operator action."
+      );
     } finally {
       this.isRunning = false;
     }

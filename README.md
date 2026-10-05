@@ -40,10 +40,12 @@
                                         │
                                         ▼
                          ┌─────────────────────────────┐
-                         │      Idempotency Check      │
-                         │  - Key exists & completed?  │──► [Yes] ──► Return Cached JSON (0 new events)
-                         │  - Payload altered? (422)   │
-                         │  - In progress? (409)       │
+                         │    Atomic Key Reservation   │
+                         │  single INSERT; on race:    │
+                         │  completed? → replay (200)  │
+                         │  payload changed? → 422     │
+                         │  in progress? → 409         │
+                         │  stale TTL? → reclaim       │
                          └──────────────┬──────────────┘
                                         │ [New Key]
                                         ▼
@@ -73,29 +75,34 @@
 - Node.js $\ge$ 20 (v22 recommended)
 - Docker Desktop (or local PostgreSQL 16)
 
-### 1. Clone & Configure Environment
+### One-Command Bootstrap
 ```bash
-git clone git@github-personal:abubakar-ahmed-dev/meterflow-billing-engine.git
+git clone https://github.com/abubakar-ahmed-dev/meterflow-billing-engine.git
+cd meterflow-billing-engine
+cp .env.example .env
+npm install
+npm run up
+```
+
+`npm run up` starts PostgreSQL via Docker Compose, waits for it to accept connections, applies migrations (`prisma migrate deploy`), seeds demo data, builds, and starts the server on port 3000.
+
+### Manual Setup (step by step)
+```bash
+git clone https://github.com/abubakar-ahmed-dev/meterflow-billing-engine.git
 cd meterflow-billing-engine
 
 # Copy placeholder environment variables
 cp .env.example .env
-```
 
-### 2. Start PostgreSQL Container
-```bash
+# Start PostgreSQL Container
 docker compose up -d
-```
 
-### 3. Install Dependencies & Seed Database
-```bash
+# Install Dependencies, Migrate & Seed Database
 npm install
-npm run db:push
+npx prisma migrate deploy
 npm run seed
-```
 
-### 4. Start Server
-```bash
+# Start Server
 # Production mode
 npm run build
 npm start
@@ -185,10 +192,20 @@ curl -i -X POST http://localhost:3000/v1/meter/billable \
 curl -s http://localhost:3000/v1/usage?tenantId=00000000-0000-0000-0000-000000000001
 ```
 
-### 4. Simulate Stripe Webhook Locally (Free $\to$ Pro Upgrade)
+### 4. Stripe Subscription Sync — Dual Mode
+
+**Mode A — Local signed simulation (default, `MOCK_STRIPE=true`)**: no Stripe account needed. The script signs payloads with Stripe's own SDK (`webhooks.generateTestHeaderString`), so the server-side verification path is identical to a real forwarded webhook:
+
 ```bash
-npm run simulate:webhook
+npm run stripe:trigger -- checkout.session.completed          # Free -> Pro upgrade
+npm run stripe:trigger -- customer.subscription.updated        # past_due mapping
+npm run stripe:trigger -- customer.subscription.deleted        # Pro -> Free downgrade
+npm run stripe:trigger -- forged                               # unsigned -> 400
 ```
+
+**Mode B — Real Stripe test mode (`MOCK_STRIPE=false` + real `sk_test_` / `whsec_` keys)**: `POST /v1/billing/checkout` creates a live Checkout Session (test card `4242 4242 4242 4242`); forward events with `stripe listen --forward-to localhost:3000/v1/webhooks/stripe`. Both modes run the same handler code; only session creation differs.
+
+> Note: Stripe has no merchant program in Pakistan, so Mode A is the documented default here. Mode B works unchanged wherever a Stripe account exists.
 
 ---
 

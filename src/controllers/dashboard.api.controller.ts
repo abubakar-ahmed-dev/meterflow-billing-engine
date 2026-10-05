@@ -45,7 +45,7 @@ export class DashboardApiController {
               tokensInputCached: true,
               tokensOutputStandard: true,
               tokensOutputReasoning: true,
-              costMicrocents: true,
+              costNanoDollars: true,
             },
           });
 
@@ -105,7 +105,7 @@ export class DashboardApiController {
             cost: {
               totalCostCents: costBreakdown.totalCostCents,
               formattedUsd: costBreakdown.formattedUsd,
-              costMicrocents: (aggregate._sum.costMicrocents || 0n).toString(),
+              costNanoDollars: (aggregate._sum.costNanoDollars || 0n).toString(),
             },
             alerts: t.usageAlerts,
           };
@@ -141,7 +141,7 @@ export class DashboardApiController {
             tokensInputCached: e.tokensInputCached,
             tokensOutputStandard: e.tokensOutputStandard,
             tokensOutputReasoning: e.tokensOutputReasoning,
-            costMicrocents: e.costMicrocents.toString(),
+            costNanoDollars: e.costNanoDollars.toString(),
             idempotencyKey: e.idempotencyKey,
             timestamp: e.timestamp,
           })),
