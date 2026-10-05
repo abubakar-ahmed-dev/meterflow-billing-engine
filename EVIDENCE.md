@@ -208,3 +208,32 @@ Test Files  6 passed (6)
   ✓ tests/integration/pricing_quota.test.ts (5)
   ✓ tests/integration/webhook_reconciliation.test.ts (6)
 ```
+
+---
+
+## 9. Clean-machine acceptance run (final check)
+
+Simulated the evaluator: `git clone` from GitHub over HTTPS into an empty directory, `cp .env.example .env`, `npm install`, `npm run up`. Boot log:
+
+```text
+[up] starting docker compose services...
+[up] applying migrations (retrying until Postgres is ready)...
+[up] migrations applied.
+Seeding database... Seeding completed successfully!
+[up] starting server...
+GET /health → {"status":"healthy","database":"connected"}
+```
+
+All five acceptance probes, executed against that pristine boot:
+
+```text
+PROBE 1  first request → 200; same key retry → 200 + X-Idempotent-Replayed: true
+PROBE 2  call 1,000 → 200; call 1,001 → 429; PAST_DUE tenant → 402
+PROBE 3  signed checkout webhook → processed; /v1/usage → plan pro, 50,000 calls / 5,000,000 tokens
+PROBE 4  forged webhook → 400 invalid_signature
+PROBE 5  canonical vector → {"totalCostCents":1,"formattedUsd":"$0.009400","costNanoDollars":"9400"}
+```
+
+`npm run test` in the same clone: 35 passed / 6 files. Manifest endpoints: `/`, `/dashboard`, `/guides`, `/docs`, `/health` all reachable; `/v1/usage` correctly answers 400 without a tenant parameter.
+
+**Secret scan**: `git log --all -p` searched for `sk_test_`/`sk_live_`/`whsec_` patterns — only the placeholder values from `.env.example` appear in the entire history.
