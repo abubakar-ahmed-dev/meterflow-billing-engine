@@ -6,8 +6,22 @@
  */
 import net from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
+import { readFileSync } from "node:fs";
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// Plain-node process: no dotenv pipeline yet at this point in `npm run up`.
+// Fall back to reading .env directly when DATABASE_URL is not exported.
+let DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  try {
+    const envFile = readFileSync(new URL("../.env", import.meta.url), "utf8");
+    const match = envFile.match(/^\s*DATABASE_URL\s*=\s*"?([^"\r\n]+)"?\s*$/m);
+    if (match) {
+      DATABASE_URL = match[1].trim();
+    }
+  } catch {
+    // .env missing — reported below.
+  }
+}
 if (!DATABASE_URL) {
   console.error("wait-for-db: DATABASE_URL is not set (copy .env.example to .env first).");
   process.exit(1);
