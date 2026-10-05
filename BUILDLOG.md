@@ -140,3 +140,14 @@ The worker previously only logged warnings. It now: transitions expired ACTIVE s
    - Integrated contextual tooltips and direct guide links into the Interactive Testing Console (`/dashboard`), connecting UI elements (idempotency keys, token sliders, quota gauges, webhook verification) directly to their corresponding architectural deep dives.
 
 ---
+
+## Phase 9: Homepage Journey Redesign & Evidence Finalization (post-audit)
+
+### What AI & User Collaboration Refined
+1. **Homepage rebuilt around a learning journey** (user direction: clean, minimal, one major thing per screen, explain before asking):
+   - Six sections ordered as a first-time visitor understands: what is this → why it exists → how it works → why trust it → prove it yourself → go deeper.
+   - Every CTA carries microcopy explaining what will happen and what you will learn (e.g., the boundary step says call 1,000 succeeds and call 1,001 returns 429 before you click).
+   - Scroll-reveal via IntersectionObserver, disabled under `prefers-reduced-motion`; skip link, `aria-labelledby` sections, visible focus states.
+2. **Shared page shell** (`src/views/shared.ts`): single source for the obsidian/champagne tokens, nav, and footer. Dashboard/guides markup adoption deliberately deferred to avoid regression risk.
+3. **Mobile defects found by real-viewport screenshots** (puppeteer; headless Edge misreports small viewports on this machine): nav overflow, H1 clipping, hero glow widening the layout — all fixed.
+4. **Evidence pack regenerated**: `EVIDENCE.md` now carries fresh transcripts with the corrected `costNanoDollars` unit, per-probe proofs, and a shared-requirements table. `DESIGN.md` synced with the implemented state (atomic reservation protocol, ADR table, new models).
