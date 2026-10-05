@@ -103,22 +103,43 @@ Gate:
 
 ---
 
-## Phase 5 — UI/UX Polish
+## Phase 5 — UI/UX Polish & Homepage Journey Redesign
 
-Branch: `phase-5-ui-polish` · Effort: ~4–6h
-Keep the obsidian/champagne identity. Fix inconsistency and fragility, not the design direction.
+Branch: `phase-5-ui-polish` · Effort: ~6–8h
+Keep the obsidian/champagne identity. Homepage gets a full redesign around a guided learning journey; the rest of the app gets consistency and accessibility fixes.
 
-Tasks:
-1. Consolidate design tokens into a single CSS variables file; remove hardcoded hex values from `home/dashboard/guide` controllers.
-2. Responsive: dashboard usable at 768px and 375px; gauges and probe labs must not break.
-3. Accessibility: AA contrast on gold-on-obsidian, visible focus states, aria-labels on interactive labs, keyboard-operable tabs.
-4. Copy pass: identical terminology across `/`, `/dashboard`, `/guides` and the API ("idempotency key", "usage event").
-5. Loading/error states: dashboard helper API failures render inline errors, never blank panes; probe results show status-code badges.
-6. Structure: extract page markup from the 913-line `dashboard.controller.ts` into `src/views/` templates; dedupe repeated markup.
-7. Homepage links to `/docs` (Swagger) and `/health`.
+### Homepage redesign (primary goal)
+Problem today: 7 dense sections, 3 CTAs + 4 badges crammed into the hero, marketing jargon. A first-time visitor cannot tell what the system is or what to do first.
+
+Redesign principles:
+- **One major idea per viewport**; sections separated by large vertical gaps (`min-h` sections, `py-24+`), narrow reading columns (`max-w-3xl`).
+- **Progressive disclosure following the user's understanding**: each section answers the question the visitor just formed, then naturally raises the next question.
+- **Never an unexplained action**: every button/CTA carries a one-line explainer of what will happen and what you will learn.
+
+Section journey (each = the question it answers):
+1. **Hero** — "What is this?" One sentence, one primary CTA (begin guided walkthrough → scrolls), quiet secondary link (jump to console). No badges, no CTA row.
+2. **The problem** — "Why does this exist?" Three concrete failure modes (retry double-charge, boundary leakage, float drift) with real examples.
+3. **How it works** — "What does it actually do?" Request lifecycle as 4 numbered steps (billable request → idempotency reservation → quota gate → record + price), plus the payment-sync side path.
+4. **The guarantees** — "Why can I trust it?" Four guarantees, each with a one-line "why it matters" and a link into the matching guide.
+5. **Try it yourself** — "Show me." Numbered 3-step guided walkthrough: (1) open the console (explains the pre-seeded tenants), (2) push the boundary tenant past 1,000 calls and watch the 429, (3) simulate a signed webhook upgrade Free→Pro. Each step: what you will see, why it matters, button with microcopy.
+6. **Go deeper** — "Where do I learn more?" Guides hub, OpenAPI docs, GitHub, health.
+7. Footer with full link set.
+
+Supporting changes:
+- Slim sticky nav (brand + Console/Guides/API); drop the announcement bar.
+- Scroll-reveal (IntersectionObserver fade-up), respecting `prefers-reduced-motion`.
+- `src/views/shared.ts`: design tokens (Tailwind config + base CSS) + shared nav/footer shell, so all pages can import one identity source.
+- Semantic HTML: `<section aria-labelledby>`, heading hierarchy, skip link, visible focus states, AA contrast.
+- SEO/meta description; consistent terminology ("idempotency key", "usage event") matching the API.
+
+### Consistency & accessibility (secondary)
+1. Dashboard usable at 768px/375px; gauges and probe labs intact.
+2. AA contrast, focus states, aria-labels on interactive labs, keyboard-operable tabs.
+3. Dashboard helper API failures render inline errors, never blank panes; probe results carry status-code badges.
+4. Dashboard/guides adopt the shared tokens module (markup stays in place; full `src/views/` extraction of the 913-line dashboard controller is explicitly deferred — not worth the regression risk this phase).
 
 Gate:
-- Manual check: 375/768/1440 widths clean; keyboard-only walkthrough of dashboard labs works; zero hardcoded palette values outside the tokens file; consistent identity on all pages.
+- Manual check: homepage reads as one idea per screen at 375/768/1440; keyboard-only walkthrough works; every CTA has explanatory microcopy; reveal animations disabled under reduced motion; suite still green.
 
 ---
 
