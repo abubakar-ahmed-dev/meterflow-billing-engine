@@ -51,7 +51,7 @@ for (;;) {
 run("npm", ["run", "seed"]);
 run("npm", ["run", "build"]);
 
-console.log("[up] starting server on ${PORT:-3000}...");
+console.log("[up] starting server...");
 const server = spawn("npm", ["start"], { stdio: "inherit", shell: process.platform === "win32" });
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => server.kill(signal));
