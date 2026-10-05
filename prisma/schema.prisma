@@ -105,3 +105,14 @@ model UsageAlert {
   @@index([tenantId, metric])
   @@map("usage_alerts")
 }
+
+model JobRunLog {
+  id        String   @id @default(uuid())
+  jobName   String   // e.g. "reconciliation"
+  status    String   // "SUCCESS" or "FAILED"
+  detail    String?  // Human-readable outcome; carries the alert payload on FAILED
+  createdAt DateTime @default(now())
+
+  @@index([jobName, createdAt])
+  @@map("job_run_logs")
+}
