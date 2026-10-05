@@ -61,7 +61,7 @@ model UsageEvent {
   tokensInputCached     Int      @default(0)
   tokensOutputStandard  Int      @default(0)
   tokensOutputReasoning Int      @default(0)
-  costMicrocents        BigInt   @default(0)
+  costNanoDollars       BigInt   @default(0)
   idempotencyKey        String
   timestamp             DateTime @default(now())
 
