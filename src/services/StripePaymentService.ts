@@ -1,13 +1,18 @@
 import Stripe from "stripe";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma.js";
 import { logger } from "../utils/logger.js";
+import { ConfigurationError } from "../utils/errors.js";
 
 export class StripePaymentService {
   private static stripeClient: Stripe | null = null;
 
   public static getStripe(): Stripe {
     if (!this.stripeClient) {
-      const apiKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder_key";
+      const apiKey = process.env.STRIPE_SECRET_KEY;
+      if (!apiKey) {
+        throw new ConfigurationError("STRIPE_SECRET_KEY is not set. Provide it in the environment (.env).");
+      }
       this.stripeClient = new Stripe(apiKey, {
         apiVersion: "2025-02-24.acacia" as any,
       });
@@ -78,7 +83,10 @@ export class StripePaymentService {
    */
   public static constructWebhookEvent(rawBody: string | Buffer, signatureHeader: string): Stripe.Event {
     const stripe = this.getStripe();
-    const secret = process.env.STRIPE_WEBHOOK_SECRET || "whsec_placeholder_secret";
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      throw new ConfigurationError("STRIPE_WEBHOOK_SECRET is not set. Provide it in the environment (.env).");
+    }
     return stripe.webhooks.constructEvent(rawBody, signatureHeader, secret);
   }
 
@@ -87,7 +95,10 @@ export class StripePaymentService {
    */
   public static generateTestSignature(payload: string, secret?: string): string {
     const stripe = this.getStripe();
-    const webhookSecret = secret || process.env.STRIPE_WEBHOOK_SECRET || "whsec_placeholder_secret";
+    const webhookSecret = secret || process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      throw new ConfigurationError("STRIPE_WEBHOOK_SECRET is not set. Provide it in the environment (.env).");
+    }
     return stripe.webhooks.generateTestHeaderString({
       payload,
       secret: webhookSecret,
@@ -96,6 +107,11 @@ export class StripePaymentService {
 
   /**
    * Processes a verified Stripe webhook event with idempotent deduplication.
+   *
+   * Concurrency protocol: the `stripeEventId` primary key is the single source of
+   * truth. A lost insert race (P2002) means another worker owns the event — that
+   * delivery answers `duplicate_ignored`. A previously FAILED event is reprocessed
+   * so Stripe retries can heal a partial failure instead of being swallowed.
    */
   public static async processWebhookEvent(event: Stripe.Event): Promise<{ status: string; eventId: string }> {
     const eventId = event.id;
@@ -106,18 +122,34 @@ export class StripePaymentService {
     });
 
     if (existing) {
-      logger.info({ eventId, type: event.type }, "⚡ Replayed webhook event ignored (idempotent deduplication)");
-      return { status: "duplicate_ignored", eventId };
+      if (existing.status !== "FAILED") {
+        logger.info({ eventId, type: event.type }, "⚡ Replayed webhook event ignored (idempotent deduplication)");
+        return { status: "duplicate_ignored", eventId };
+      }
+      // Failed previously: reset to PROCESSING so Stripe's retry gets another pass.
+      logger.warn({ eventId, type: event.type }, "🔁 FAILED webhook event re-delivered; reprocessing.");
+      await prisma.processedWebhookEvent.update({
+        where: { stripeEventId: eventId },
+        data: { status: "PROCESSING" },
+      });
+    } else {
+      // Record event as in-progress; lose the race to a concurrent delivery → ignore.
+      try {
+        await prisma.processedWebhookEvent.create({
+          data: {
+            stripeEventId: eventId,
+            eventType: event.type,
+            status: "PROCESSING",
+          },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          logger.info({ eventId, type: event.type }, "⚡ Concurrent webhook delivery won the race; ignoring duplicate.");
+          return { status: "duplicate_ignored", eventId };
+        }
+        throw err;
+      }
     }
-
-    // Record event as in-progress
-    await prisma.processedWebhookEvent.create({
-      data: {
-        stripeEventId: eventId,
-        eventType: event.type,
-        status: "PROCESSING",
-      },
-    });
 
     try {
       // 2. State Machine Transitions based on Event Type

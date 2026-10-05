@@ -2,7 +2,7 @@ import { prisma } from "../db/prisma.js";
 
 export interface QuotaCheckResult {
   allowed: boolean;
-  statusCode?: 200 | 402 | 429;
+  statusCode?: 200 | 402 | 404 | 429;
   error?: string;
   message?: string;
   metric?: "api_calls" | "ai_tokens";
@@ -39,7 +39,7 @@ export class QuotaService {
     if (!tenant) {
       return {
         allowed: false,
-        statusCode: 429,
+        statusCode: 404,
         error: "tenant_not_found",
         message: `Tenant with ID ${tenantId} does not exist.`,
       };

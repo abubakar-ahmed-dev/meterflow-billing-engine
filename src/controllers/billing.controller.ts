@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { StripePaymentService } from "../services/StripePaymentService.js";
+import { ConfigurationError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 
 export class BillingController {
@@ -21,6 +22,15 @@ export class BillingController {
         },
       });
     } catch (err) {
+      if (err instanceof ConfigurationError) {
+        logger.error({ err }, "Checkout unavailable: Stripe configuration missing");
+        res.status(500).json({
+          success: false,
+          error: "server_configuration_error",
+          message: err.message,
+        });
+        return;
+      }
       logger.error({ err }, "Checkout session creation failed");
       res.status(400).json({
         success: false,
@@ -55,6 +65,15 @@ export class BillingController {
     try {
       event = StripePaymentService.constructWebhookEvent(rawBody, signature);
     } catch (err) {
+      if (err instanceof ConfigurationError) {
+        logger.error({ err }, "Webhook endpoint misconfigured: STRIPE_WEBHOOK_SECRET missing");
+        res.status(500).json({
+          success: false,
+          error: "server_configuration_error",
+          message: err.message,
+        });
+        return;
+      }
       logger.warn({ err: (err as Error).message }, "🚫 Forged or invalid webhook signature rejected with 400");
       res.status(400).json({
         success: false,
