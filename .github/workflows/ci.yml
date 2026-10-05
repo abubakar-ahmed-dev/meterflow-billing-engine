@@ -45,10 +45,10 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Run Prisma Database Push
+      - name: Apply Prisma Migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/meterflow_test_db?schema=public
-        run: npx prisma db push
+        run: npx prisma migrate deploy
 
       - name: Seed Test Database
         env:

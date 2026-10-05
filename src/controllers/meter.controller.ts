@@ -123,7 +123,7 @@ export class MeterController {
         tokensInputCached: true,
         tokensOutputStandard: true,
         tokensOutputReasoning: true,
-        costMicrocents: true,
+        costNanoDollars: true,
       },
     });
 
@@ -186,7 +186,7 @@ export class MeterController {
         },
         cost: {
           totalCostCents: tokenCostBreakdown.totalCostCents,
-          totalCostMicrocents: (aggregate._sum.costMicrocents || 0n).toString(),
+          totalCostNanoDollars: (aggregate._sum.costNanoDollars || 0n).toString(),
           formattedUsd: tokenCostBreakdown.formattedUsd,
           itemizedTokensCost: {
             freshInputNano: tokenCostBreakdown.costFreshInputNano,

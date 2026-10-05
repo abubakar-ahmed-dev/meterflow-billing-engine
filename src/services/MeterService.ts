@@ -160,7 +160,7 @@ export class MeterService {
         cost: {
           totalCostCents: costBreakdown.totalCostCents,
           formattedUsd: costBreakdown.formattedUsd,
-          costMicrocents: totalCostNanoDollars.toString(),
+          costNanoDollars: totalCostNanoDollars.toString(),
         },
         planId: quotaResult.planId,
       },
@@ -178,7 +178,7 @@ export class MeterService {
             tokensInputCached: costBreakdown.cachedInputTokens,
             tokensOutputStandard: costBreakdown.standardOutputTokens,
             tokensOutputReasoning: costBreakdown.reasoningTokens,
-            costMicrocents: totalCostNanoDollars,
+            costNanoDollars: totalCostNanoDollars,
             idempotencyKey,
           },
         }),

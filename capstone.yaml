@@ -1,7 +1,7 @@
 # Capstone Evaluator Manifest
 # Machine-readable contract per FlyRank Internship Backend Track Specification
 
-run: "npm run start"
+run: "npm run up"
 seed: "npm run seed"
 test: "npm run test"
 base_url: "http://localhost:3000"

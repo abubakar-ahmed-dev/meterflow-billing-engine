@@ -51,7 +51,7 @@ export class ReconciliationWorker {
           tokensInputCached: true,
           tokensOutputStandard: true,
           tokensOutputReasoning: true,
-          costMicrocents: true,
+          costNanoDollars: true,
         },
       });
 

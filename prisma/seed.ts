@@ -105,7 +105,7 @@ export async function seed() {
       tokensInputCached: 0,
       tokensOutputStandard: 0,
       tokensOutputReasoning: 0,
-      costMicrocents: BigInt(0),
+      costNanoDollars: BigInt(0),
       idempotencyKey: "seed-boundary-preload-999",
       timestamp: new Date(),
     },

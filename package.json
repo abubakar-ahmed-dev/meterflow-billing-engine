@@ -12,6 +12,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "seed": "tsx prisma/seed.ts",
+    "up": "node scripts/up.mjs",
     "simulate:webhook": "tsx scripts/simulate-webhook.ts",
     "job:reconcile": "tsx scripts/run-job.ts",
     "test": "vitest run",

@@ -73,29 +73,34 @@
 - Node.js $\ge$ 20 (v22 recommended)
 - Docker Desktop (or local PostgreSQL 16)
 
-### 1. Clone & Configure Environment
+### One-Command Bootstrap
 ```bash
-git clone git@github-personal:abubakar-ahmed-dev/meterflow-billing-engine.git
+git clone https://github.com/abubakar-ahmed-dev/meterflow-billing-engine.git
+cd meterflow-billing-engine
+cp .env.example .env
+npm install
+npm run up
+```
+
+`npm run up` starts PostgreSQL via Docker Compose, waits for it to accept connections, applies migrations (`prisma migrate deploy`), seeds demo data, builds, and starts the server on port 3000.
+
+### Manual Setup (step by step)
+```bash
+git clone https://github.com/abubakar-ahmed-dev/meterflow-billing-engine.git
 cd meterflow-billing-engine
 
 # Copy placeholder environment variables
 cp .env.example .env
-```
 
-### 2. Start PostgreSQL Container
-```bash
+# Start PostgreSQL Container
 docker compose up -d
-```
 
-### 3. Install Dependencies & Seed Database
-```bash
+# Install Dependencies, Migrate & Seed Database
 npm install
-npm run db:push
+npx prisma migrate deploy
 npm run seed
-```
 
-### 4. Start Server
-```bash
+# Start Server
 # Production mode
 npm run build
 npm start
