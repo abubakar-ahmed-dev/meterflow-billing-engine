@@ -96,18 +96,6 @@ This log honestly documents where AI assistance helped, where it made assumption
 
 ---
 
-## Phase 7: System Guides Hub & Blog-Style Architecture Documentation
-
-### What AI Helped With
-1. **Semi-Formal Knowledge Base Authoring**:
-   - Authored 6 comprehensive architectural guides in `docs/guides/` and embedded them in web controllers (`/guides` archive and `/guides/:slug` individual article pages).
-   - Employed natural, varied section headings tailored directly to each technical domain without repetitive formulas.
-   - Maintained an accessible, semi-formal technical voice suitable for non-technical stakeholders, product leads, and senior backend evaluators.
-2. **Contextual In-App Guidance**:
-   - Integrated contextual tooltips and direct guide links into the Interactive Testing Console (`/dashboard`), connecting UI elements (idempotency keys, token sliders, quota gauges, webhook verification) directly to their corresponding architectural deep dives.
-
----
-
 ## Phase 8: Homepage Experience, Progressive Disclosure & Unique Theme Redesign
 
 ### What AI & User Collaboration Refined
@@ -125,3 +113,30 @@ This log honestly documents where AI assistance helped, where it made assumption
      - Step 4: Refined, toggleable Activity & Audit Ledger avoiding viewport clutter.
 4. **Unified Visual Identity Across All Views**:
    - Propagated the Obsidian & Champagne Gold design system to `/` (Homepage), `/dashboard` (Testing Console), `/guides` (Documentation Hub), and `/guides/:slug` (Individual Article Pages).
+
+## Phase 4b: Hardening, Migrations & Simulation Fidelity (post-audit)
+
+### Where AI Was Wrong / What the Audit Caught
+1. **Concurrency crash (P0)**: concurrent same-idempotency-key requests raced past the check-then-upsert reservation and crashed the server on Prisma `P2002` (Express 4 does not catch async rejections). Rebuilt as a single-INSERT reservation with race resolution and TTL-based reclaim of stale `IN_PROGRESS` keys; proven by a 12-request parallel flood test (exactly 1 event, zero 500s).
+2. **Unit mislabel**: the `costMicrocents` column actually stored micro-dollars (nano/1000). Renamed to `costNanoDollars` across schema, code, and UI inside the initial migration.
+3. **No migrations**: schema was managed with `db:push`. Now on real `prisma/migrations` + `migrate deploy`; `npm run up` boots a clean machine in one command.
+4. **Placeholder-secret fallback**: missing Stripe env silently used public placeholder secrets. Now fails closed (`ConfigurationError` -> 500).
+
+### Pakistan & Stripe Reality
+Stripe offers no merchant program in Pakistan, so no account can be created. The integration is dual-mode by design:
+- **Default (documented)**: local signed simulation using Stripe's own `generateTestHeaderString` — the verification path is cryptographically identical to a real forwarded webhook. `npm run stripe:trigger` mirrors `stripe trigger` semantics for all three webhook types plus a forged-signature case.
+- **Available**: the real Stripe SDK path (Checkout Session creation, `constructEvent`) is unchanged and works wherever an evaluator has test keys.
+Honest limitation, not a workaround pretending to be test mode.
+
+### Reconciliation Worker Made Real
+The worker previously only logged warnings. It now: transitions expired ACTIVE subscriptions to `PAST_DUE` (activating 402 enforcement), audits rollup totals, persists every run to `job_run_logs`, and records a persisted FAILED alert when the retry budget is exhausted (Shared Requirement #3: retries + failure alert).
+
+### What AI Helped With
+1. **Semi-Formal Knowledge Base Authoring**:
+   - Authored 6 comprehensive architectural guides in `docs/guides/` and embedded them in web controllers (`/guides` archive and `/guides/:slug` individual article pages).
+   - Employed natural, varied section headings tailored directly to each technical domain without repetitive formulas.
+   - Maintained an accessible, semi-formal technical voice suitable for non-technical stakeholders, product leads, and senior backend evaluators.
+2. **Contextual In-App Guidance**:
+   - Integrated contextual tooltips and direct guide links into the Interactive Testing Console (`/dashboard`), connecting UI elements (idempotency keys, token sliders, quota gauges, webhook verification) directly to their corresponding architectural deep dives.
+
+---

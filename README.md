@@ -190,10 +190,20 @@ curl -i -X POST http://localhost:3000/v1/meter/billable \
 curl -s http://localhost:3000/v1/usage?tenantId=00000000-0000-0000-0000-000000000001
 ```
 
-### 4. Simulate Stripe Webhook Locally (Free $\to$ Pro Upgrade)
+### 4. Stripe Subscription Sync — Dual Mode
+
+**Mode A — Local signed simulation (default, `MOCK_STRIPE=true`)**: no Stripe account needed. The script signs payloads with Stripe's own SDK (`webhooks.generateTestHeaderString`), so the server-side verification path is identical to a real forwarded webhook:
+
 ```bash
-npm run simulate:webhook
+npm run stripe:trigger -- checkout.session.completed          # Free -> Pro upgrade
+npm run stripe:trigger -- customer.subscription.updated        # past_due mapping
+npm run stripe:trigger -- customer.subscription.deleted        # Pro -> Free downgrade
+npm run stripe:trigger -- forged                               # unsigned -> 400
 ```
+
+**Mode B — Real Stripe test mode (`MOCK_STRIPE=false` + real `sk_test_` / `whsec_` keys)**: `POST /v1/billing/checkout` creates a live Checkout Session (test card `4242 4242 4242 4242`); forward events with `stripe listen --forward-to localhost:3000/v1/webhooks/stripe`. Both modes run the same handler code; only session creation differs.
+
+> Note: Stripe has no merchant program in Pakistan, so Mode A is the documented default here. Mode B works unchanged wherever a Stripe account exists.
 
 ---
 

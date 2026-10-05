@@ -164,7 +164,16 @@ export class StripePaymentService {
 
           if (tenantId) {
             const now = new Date();
-            const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            // Payment truth lives at Stripe: prefer the subscription's own period
+            // when the payload carries the expanded object; fall back to a
+            // calendar month window otherwise.
+            const expanded = typeof session.subscription === "object" ? session.subscription : null;
+            const periodStart = expanded?.current_period_start
+              ? new Date(expanded.current_period_start * 1000)
+              : now;
+            const periodEnd = expanded?.current_period_end
+              ? new Date(expanded.current_period_end * 1000)
+              : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
             await prisma.$transaction([
               prisma.tenant.update({
@@ -184,7 +193,7 @@ export class StripePaymentService {
                   planId: "pro",
                   status: "ACTIVE",
                   stripeSubscriptionId,
-                  currentPeriodStart: now,
+                  currentPeriodStart: periodStart,
                   currentPeriodEnd: periodEnd,
                 },
               }),
