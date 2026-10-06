@@ -2,14 +2,17 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: ubuntu-latest
+    # Pinned to ubuntu-22.04: ubuntu-latest jobs were repeatedly not acquired
+    # by hosted runners (2026-10 runner capacity churn ahead of the Ubuntu 26
+    # migration). 22.04 is a separate, stable pool.
+    runs-on: ubuntu-22.04
 
     services:
       postgres:
